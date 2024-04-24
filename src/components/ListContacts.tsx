@@ -3,7 +3,6 @@ import {
   TextField,
   Button,
   IconButton,
-  Typography,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -13,7 +12,7 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import SaveIcon from '@mui/icons-material/Save';
-import { cpf as cpfValidator } from 'cpf-cnpj-validator'; // Renomeando o método 'cpf' para 'cpfValidator'
+import { cpf } from 'cpf-cnpj-validator';// Importa a função isValid do pacote cpf-validar
 
 interface Contact {
   id: number;
@@ -32,7 +31,7 @@ const ListContacts: React.FC = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [editingContactId, setEditingContactId] = useState<number | null>(null);
   const [nome, setNome] = useState('');
-  const [cpfValue, setCpfValue] = useState('');
+  const [cpfInput, setCpfInput] = useState('');
   const [telefone, setTelefone] = useState('');
   const [endereco, setEndereco] = useState('');
   const [cep, setCep] = useState('');
@@ -42,8 +41,6 @@ const ListContacts: React.FC = () => {
   const [localidade, setLocalidade] = useState('');
   const [uf, setUf] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [cpfValid, setCpfValid] = useState<boolean | null>(null);
-  const [cpfInput, setCpfInput] = useState('');
 
   useEffect(() => {
     const savedContacts = localStorage.getItem('contacts');
@@ -56,20 +53,18 @@ const ListContacts: React.FC = () => {
     localStorage.setItem('contacts', JSON.stringify(updatedContacts));
   };
 
-  const validateAndSetCpf = (value: string) => {
-    const isValid = cpfValidator.isValid(value); // Usando o método 'isValid' corretamente
-    setCpfValue(value);
-    setCpfValid(isValid);
-  };
-
   const filteredContacts = contacts.filter((contact) => {
     return contact.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
       contact.cpf.includes(searchTerm);
   });
 
+  const isValidCPF = (inputCPF: string) => {
+    return cpf.isValid(inputCPF);
+  };
+
   const handleCepChange = async (value: string) => {
     setCep(value);
-    if (value.length === 8) {
+    if (value.length === 8) { // Verifica se o CEP tem o tamanho correto
       try {
         const response = await fetch(`https://viacep.com.br/ws/${value}/json/`);
         const data = await response.json();
@@ -95,7 +90,7 @@ const ListContacts: React.FC = () => {
     const contactToEdit = contacts.find((contact) => contact.id === id);
     if (contactToEdit) {
       setNome(contactToEdit.nome);
-      setCpfValue(contactToEdit.cpf);
+      setCpfInput(contactToEdit.cpf);
       setTelefone(contactToEdit.telefone);
       setEndereco(contactToEdit.endereco);
       setCep(contactToEdit.cep);
@@ -106,12 +101,17 @@ const ListContacts: React.FC = () => {
   };
 
   const handleSaveEditContact = () => {
+    if (!isValidCPF(cpfInput)) { // Verifica se o CPF é válido antes de salvar
+      alert('CPF inválido');
+      return;
+    }
+
     const updatedContacts = contacts.map((contact) => {
       if (contact.id === editingContactId) {
         return {
           ...contact,
           nome,
-          cpf: cpfValue,
+          cpf: cpfInput,
           telefone,
           endereco,
           cep,
@@ -124,8 +124,9 @@ const ListContacts: React.FC = () => {
     setContacts(updatedContacts);
     saveContactsToLocalStorage(updatedContacts);
     setEditingContactId(null);
+    // Limpar os campos após editar o contato
     setNome('');
-    setCpfValue('');
+    setCpfInput('');
     setTelefone('');
     setEndereco('');
     setCep('');
@@ -134,12 +135,17 @@ const ListContacts: React.FC = () => {
   };
 
   const handleAddContact = () => {
+    if (!isValidCPF(cpfInput)) { // Verifica se o CPF é válido antes de salvar
+      alert('CPF inválido');
+      return;
+    }
+
     const newContact: Contact = {
       id: contacts.length + 1,
       nome,
-      cpf: cpfValue,
-      localidade,
-      uf,
+      cpf: cpfInput,
+      localidade, // Cidade
+      uf, // Estado
       telefone,
       endereco,
       cep,
@@ -149,8 +155,9 @@ const ListContacts: React.FC = () => {
     const updatedContacts = [...contacts, newContact];
     setContacts(updatedContacts);
     saveContactsToLocalStorage(updatedContacts);
+    // Limpar os campos após adicionar o contato
     setNome('');
-    setCpfValue('');
+    setCpfInput('');
     setLocalidade('');
     setUf('');
     setTelefone('');
@@ -169,6 +176,7 @@ const ListContacts: React.FC = () => {
   return (
     <div>
       <h1>Contatos</h1>
+
       <TextField
         label="Nome"
         value={nome}
@@ -179,13 +187,11 @@ const ListContacts: React.FC = () => {
       />
       <TextField
         label="CPF"
-        value={cpfValue}
-        onChange={(e) => validateAndSetCpf(e.target.value)}
+        value={cpfInput}
+        onChange={(e) => setCpfInput(e.target.value)}
         variant="outlined"
         fullWidth
         margin="normal"
-        error={cpfValue !== '' && !cpfValid}
-        helperText={cpfValue !== '' && !cpfValid ? "CPF inválido" : ""}
       />
       <TextField
         label="Telefone"
@@ -264,6 +270,7 @@ const ListContacts: React.FC = () => {
         fullWidth
         margin="normal"
       />
+      
       <Table>
         <TableHead>
           <TableRow>
@@ -278,7 +285,7 @@ const ListContacts: React.FC = () => {
           </TableRow>
         </TableHead>
         <TableBody>
-        {filteredContacts.map((contact) => (
+          {contacts.map((contact) => (
             <TableRow key={contact.id}>
               <TableCell>
                 {editingContactId === contact.id ? (
@@ -350,13 +357,6 @@ const ListContacts: React.FC = () => {
           ))}
         </TableBody>
       </Table>
-
-      {cpfValue !== '' && cpfValid !== null && (
-        <Typography variant="body2" color={cpfValid ? "textPrimary" : "error"}>
-          {cpfValid ? "CPF válido" : "CPF inválido"}
-        </Typography>
-      )}
-
     </div>
   );
 };

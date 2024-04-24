@@ -3,8 +3,8 @@ import { BrowserRouter as Router, Route, Routes, Navigate, Link } from 'react-ro
 import Login from './components/Login';
 import Register from './components/Register';
 import Contact from './components/Contacts';
-import Navbar from './components/Navbar'
-import { Button } from '@mui/material';
+import Navbar from './components/Navbar';
+import ListContacts from './components/Contacts';
 
 const isLoggedIn = () => {
   // Verificar se o usuário está logado (pode ser uma verificação em localStorage, por exemplo)
@@ -35,13 +35,12 @@ const App: React.FC = () => {
         <Route path="/" element={isLoggedIn() ? <Navigate to="/login" /> : <Login onLogin={handleLogin} />} />
         <Route path="/login" element={isLoggedIn() ? <Navigate to="/login" /> : <Login onLogin={handleLogin} />} />
         <Route path="/register" element={isLoggedIn() ? <Navigate to="/register" /> : <Register onLogin={handleLogin} />} />
-        <Route path="/contact" element={isLoggedIn() ? <Contact /> : <Navigate to="/contact" />} />
+        <Route path="/ListContact" element={isLoggedIn() ? <Contact /> : <ListContacts/>} />
       </Routes>
       <div>
       {loggedIn ? (
         <div>
          <Navbar username={username} onLogout={handleLogout} />
-          <Contact />
         </div>
       ) : (
         <a/>
