@@ -4,7 +4,7 @@ import Login from './components/Login';
 import Register from './components/Register';
 import Contact from './components/Contacts';
 import Navbar from './components/Navbar';
-import ListContacts from './components/Contacts';
+import ListContacts from './components/ListContacts';
 
 const isLoggedIn = () => {
   // Verificar se o usuário está logado (pode ser uma verificação em localStorage, por exemplo)
@@ -35,7 +35,8 @@ const App: React.FC = () => {
         <Route path="/" element={isLoggedIn() ? <Navigate to="/login" /> : <Login onLogin={handleLogin} />} />
         <Route path="/login" element={isLoggedIn() ? <Navigate to="/login" /> : <Login onLogin={handleLogin} />} />
         <Route path="/register" element={isLoggedIn() ? <Navigate to="/register" /> : <Register onLogin={handleLogin} />} />
-        <Route path="/ListContact" element={isLoggedIn() ? <Contact /> : <ListContacts/>} />
+        <Route path="/ListContact" element={isLoggedIn() ? <ListContacts /> : <ListContacts/>} />
+        <Route path="/create" element={isLoggedIn() ? <Contact /> : <Contact/>} />
       </Routes>
       <div>
       {loggedIn ? (

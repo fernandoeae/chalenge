@@ -2,18 +2,17 @@ import React, { useState, useEffect } from 'react';
 import {
   TextField,
   Button,
-  IconButton,
-  Typography,
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
+import Grid from '@mui/material/Grid';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
-import SaveIcon from '@mui/icons-material/Save';
-import { cpf as cpfValidator } from 'cpf-cnpj-validator'; // Renomeando o método 'cpf' para 'cpfValidator'
+import { cpf as cpfValidator } from 'cpf-cnpj-validator';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
+import { getLatLngFromAddress } from '../api/geoCode';
 
 interface Contact {
   id: number;
@@ -28,7 +27,7 @@ interface Contact {
   longitude: number;
 }
 
-const ListContacts: React.FC = () => {
+const Contacts: React.FC = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [editingContactId, setEditingContactId] = useState<number | null>(null);
   const [nome, setNome] = useState('');
@@ -44,6 +43,25 @@ const ListContacts: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [cpfValid, setCpfValid] = useState<boolean | null>(null);
   const [cpfInput, setCpfInput] = useState('');
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+
+  const openSuccessSnackbar = (message: any) => {
+    setSnackbarMessage(message);
+    setOpenSnackbar(true);
+  };
+
+
+  const openErrorSnackbar = (message: any) => {
+    setSnackbarMessage(message);
+    setOpenSnackbar(true);
+  };
+
+  const handleCloseSnackbar = () => {
+    setOpenSnackbar(false);
+  };
+
+
 
   useEffect(() => {
     const savedContacts = localStorage.getItem('contacts');
@@ -57,9 +75,25 @@ const ListContacts: React.FC = () => {
   };
 
   const validateAndSetCpf = (value: string) => {
+
     const isValid = cpfValidator.isValid(value); // Usando o método 'isValid' corretamente
-    setCpfValue(value);
-    setCpfValid(isValid);
+    let verify = '';
+    const contactString = localStorage.getItem('contacts');
+    const contacts: { cpf: string }[] = contactString ? JSON.parse(contactString) : [];
+
+    // Verifica se o cpf de usuário já existe
+    if (contacts.find(client => client.cpf === value)) {
+
+      openErrorSnackbar('Cpf Já cadastrado no sistema');
+      verify = 'false';
+
+    } else {
+      setCpfValue(value);
+      setCpfValid(isValid);
+      verify = 'true';
+    }
+    return verify
+
   };
 
   const filteredContacts = contacts.filter((contact) => {
@@ -67,19 +101,26 @@ const ListContacts: React.FC = () => {
       contact.cpf.includes(searchTerm);
   });
 
+
+
+
   const handleCepChange = async (value: string) => {
     setCep(value);
     if (value.length === 8) {
       try {
         const response = await fetch(`https://viacep.com.br/ws/${value}/json/`);
         const data = await response.json();
+
         setAddressInfo(data);
         if (!data.erro) {
           setEndereco(data.logradouro);
           setLocalidade(data.localidade);
           setUf(data.uf);
-          setLatitude(parseFloat(data.latitude));
-          setLongitude(parseFloat(data.longitude));
+
+          // Obter latitude e longitude do endereço
+          const { latitude, longitude } = await getLatLngFromAddress(`${data.logradouro}, ${data.localidade}, ${data.uf}`);
+          setLatitude(latitude);
+          setLongitude(longitude);
         }
       } catch (error) {
         console.error('Erro ao consultar o CEP:', error);
@@ -90,171 +131,168 @@ const ListContacts: React.FC = () => {
     }
   };
 
-  const handleEditContact = (id: number) => {
-    setEditingContactId(id);
-    const contactToEdit = contacts.find((contact) => contact.id === id);
-    if (contactToEdit) {
-      setNome(contactToEdit.nome);
-      setCpfValue(contactToEdit.cpf);
-      setTelefone(contactToEdit.telefone);
-      setEndereco(contactToEdit.endereco);
-      setCep(contactToEdit.cep);
-      setLatitude(contactToEdit.latitude);
-      setLongitude(contactToEdit.longitude);
-      setAddressInfo(null);
+
+  const handleAddContact = () => {
+    if (nome
+      && cpfValue
+      && (cpfValidator.isValid(cpfValue))
+    ) {
+      const newContact: Contact = {
+        id: contacts.length + 1,
+        nome,
+        cpf: cpfValue,
+        localidade,
+        uf,
+        telefone,
+        endereco,
+        cep,
+        latitude,
+        longitude,
+      };
+      const updatedContacts = [...contacts, newContact];
+      setContacts(updatedContacts);
+      saveContactsToLocalStorage(updatedContacts);
+      setNome('');
+      setCpfValue('');
+      setLocalidade('');
+      setUf('');
+      setTelefone('');
+      setEndereco('');
+      setCep('');
+      setLatitude(0);
+      setLongitude(0);
     }
   };
 
-  const handleSaveEditContact = () => {
-    const updatedContacts = contacts.map((contact) => {
-      if (contact.id === editingContactId) {
-        return {
-          ...contact,
-          nome,
-          cpf: cpfValue,
-          telefone,
-          endereco,
-          cep,
-          latitude,
-          longitude,
-        };
-      }
-      return contact;
-    });
-    setContacts(updatedContacts);
-    saveContactsToLocalStorage(updatedContacts);
-    setEditingContactId(null);
-    setNome('');
-    setCpfValue('');
-    setTelefone('');
-    setEndereco('');
-    setCep('');
-    setLatitude(0);
-    setLongitude(0);
-  };
-
-  const handleAddContact = () => {
-    const newContact: Contact = {
-      id: contacts.length + 1,
-      nome,
-      cpf: cpfValue,
-      localidade,
-      uf,
-      telefone,
-      endereco,
-      cep,
-      latitude,
-      longitude,
-    };
-    const updatedContacts = [...contacts, newContact];
-    setContacts(updatedContacts);
-    saveContactsToLocalStorage(updatedContacts);
-    setNome('');
-    setCpfValue('');
-    setLocalidade('');
-    setUf('');
-    setTelefone('');
-    setEndereco('');
-    setCep('');
-    setLatitude(0);
-    setLongitude(0);
-  };
-
-  const handleDeleteContact = (id: number) => {
-    const updatedContacts = contacts.filter((contact) => contact.id !== id);
-    setContacts(updatedContacts);
-    saveContactsToLocalStorage(updatedContacts);
-  };
-
   return (
-    <div>
+    <div className='top'>
       <h1>Contatos</h1>
-      <TextField
-        label="Nome"
-        value={nome}
-        onChange={(e) => setNome(e.target.value)}
-        variant="outlined"
-        fullWidth
-        margin="normal"
-      />
-      <TextField
-        label="CPF"
-        value={cpfValue}
-        onChange={(e) => validateAndSetCpf(e.target.value)}
-        variant="outlined"
-        fullWidth
-        margin="normal"
-        error={cpfValue !== '' && !cpfValid}
-        helperText={cpfValue !== '' && !cpfValid ? "CPF inválido" : ""}
-      />
-      <TextField
-        label="Telefone"
-        value={telefone}
-        onChange={(e) => setTelefone(e.target.value)}
-        variant="outlined"
-        fullWidth
-        margin="normal"
-      />
-      <TextField
-        label="CEP"
-        value={cep}
-        onChange={(e) => handleCepChange(e.target.value)}
-        variant="outlined"
-        fullWidth
-        margin="normal"
-      />
-      <TextField
-        label="Estado"
-        value={uf}
-        variant="outlined"
-        fullWidth
-        margin="normal"
-        disabled
-      />
-      <TextField
-        label="Cidade"
-        value={localidade}
-        variant="outlined"
-        fullWidth
-        margin="normal"
-        disabled
-      />
 
-      <TextField
-        label="Endereço"
-        value={endereco}
-        onChange={(e) => setEndereco(e.target.value)}
-        variant="outlined"
-        fullWidth
-        margin="normal"
-      />
-      <TextField
-        label="Latitude"
-        type="number"
-        value={latitude}
-        onChange={(e) => setLatitude(parseFloat(e.target.value))}
-        variant="outlined"
-        fullWidth
-        margin="normal"
-      />
-      <TextField
-        label="Longitude"
-        type="number"
-        value={longitude}
-        onChange={(e) => setLongitude(parseFloat(e.target.value))}
-        variant="outlined"
-        fullWidth
-        margin="normal"
-      />
-      {editingContactId ? (
-        <Button variant="contained" color="primary" onClick={handleSaveEditContact}>
-          Salvar Edição
-        </Button>
-      ) : (
-        <Button variant="contained" color="primary" onClick={handleAddContact}>
-          Adicionar Contato
-        </Button>
-      )}
+      <Grid container spacing={2}>
+        <Grid item xs={4}>
+
+          <TextField
+            label="Nome" size="small"
+            value={nome}
+            sx={{ mx: 2 }}
+            onChange={(e) => setNome(e.target.value)}
+            variant="outlined"
+            margin="normal"
+            fullWidth
+            required
+          />
+        </Grid>
+        <Grid item xs={4}>
+
+          <TextField
+            label="CPF"
+            size="small"
+            sx={{ mx: 2 }}
+            value={cpfValue}
+            onChange={(e) => validateAndSetCpf(e.target.value)}
+            variant="outlined"
+            fullWidth
+            margin="normal"
+            error={cpfValue !== '' && !cpfValid}
+            helperText={cpfValue !== '' && !cpfValid ? "CPF inválido" : ""}
+            required
+          />
+        </Grid>
+        <Grid item xs={4}>
+          <TextField
+            label="Telefone"
+            size="small"
+            value={telefone}
+            fullWidth
+            sx={{ mx: 2 }}
+            onChange={(e) => setTelefone(e.target.value)}
+            variant="outlined"
+            margin="normal"
+          />
+        </Grid>
+
+        <Grid item xs={4}>
+          <TextField
+            label="CEP"
+            size="small"
+            value={cep}
+            sx={{ mx: 2 }}
+            fullWidth
+            onChange={(e) => handleCepChange(e.target.value)}
+            variant="outlined"
+            margin="normal"
+          />
+        </Grid>
+        <Grid item xs={4}>
+          <TextField
+            label="Estado"
+            size="small"
+            sx={{ mx: 2 }}
+            fullWidth
+            value={uf}
+            variant="outlined"
+            margin="normal"
+            disabled
+          />
+        </Grid>
+        <Grid item xs={4}>
+          <TextField
+            label="Cidade"
+            sx={{ mx: 2 }}
+            fullWidth
+            size="small"
+            value={localidade}
+            variant="outlined"
+            margin="normal"
+            disabled
+          />
+
+        </Grid>
+        <Grid item xs={4}>
+          <TextField
+            label="Endereço"
+            size="small"
+            value={endereco}
+            sx={{ mx: 2 }}
+            fullWidth
+            onChange={(e) => setEndereco(e.target.value)}
+            variant="outlined"
+            margin="normal"
+          />
+        </Grid>
+        <Grid item xs={4}>
+          <TextField
+            label="Latitude"
+            size="small"
+            type="number"
+            value={latitude}
+            fullWidth
+            sx={{ mx: 2 }}
+            onChange={(e) => setLatitude(parseFloat(e.target.value))}
+            variant="outlined"
+            margin="normal"
+          />
+        </Grid>
+        <Grid item xs={4}>
+          <TextField
+            label="Longitude"
+            size="small"
+            type="number"
+            value={longitude}
+            fullWidth
+            sx={{ mx: 2 }}
+            onChange={(e) => setLongitude(parseFloat(e.target.value))}
+            variant="outlined"
+            margin="normal"
+          />
+        </Grid>
+      </Grid>
+
+
+      <Button variant="contained" color="primary" onClick={handleAddContact}>
+        Adicionar Contato
+      </Button>
+
 
       <TextField
         label="Pesquisar por CPF ou Nome"
@@ -274,11 +312,10 @@ const ListContacts: React.FC = () => {
             <TableCell>CEP</TableCell>
             <TableCell>Latitude</TableCell>
             <TableCell>Longitude</TableCell>
-            <TableCell>Actions</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-        {filteredContacts.map((contact) => (
+          {filteredContacts.map((contact) => (
             <TableRow key={contact.id}>
               <TableCell>
                 {editingContactId === contact.id ? (
@@ -294,11 +331,20 @@ const ListContacts: React.FC = () => {
                 {editingContactId === contact.id ? (
                   <TextField
                     value={cpfInput}
-                    onChange={(e) => setCpfInput(e.target.value)}
+                    onChange={(e) => {
+                      setCpfInput(e.target.value);
+
+                    }}
+                    onBlur={(e) => validateAndSetCpf(e.target.value)}
+                    error={cpfValue !== '' && !cpfValid}
+                    helperText={cpfValue !== '' && !cpfValid ? "CPF inválido" : ""}
                   />
+
                 ) : (
                   contact.cpf
                 )}
+
+
               </TableCell>
               <TableCell>
                 {editingContactId === contact.id ? (
@@ -332,33 +378,26 @@ const ListContacts: React.FC = () => {
               </TableCell>
               <TableCell>{contact.latitude}</TableCell>
               <TableCell>{contact.longitude}</TableCell>
-              <TableCell>
-                {editingContactId === contact.id ? (
-                  <IconButton onClick={handleSaveEditContact}>
-                    <SaveIcon />
-                  </IconButton>
-                ) : (
-                  <IconButton onClick={() => handleEditContact(contact.id)}>
-                    <EditIcon />
-                  </IconButton>
-                )}
-                <IconButton onClick={() => handleDeleteContact(contact.id)}>
-                  <DeleteIcon />
-                </IconButton>
-              </TableCell>
+
             </TableRow>
           ))}
         </TableBody>
       </Table>
 
-      {cpfValue !== '' && cpfValid !== null && (
-        <Typography variant="body2" color={cpfValid ? "textPrimary" : "error"}>
-          {cpfValid ? "CPF válido" : "CPF inválido"}
-        </Typography>
-      )}
+      <Snackbar open={openSnackbar} autoHideDuration={6000} onClose={handleCloseSnackbar}>
+        <Alert onClose={handleCloseSnackbar} severity="success" sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
+
+      <Snackbar open={openSnackbar} autoHideDuration={6000} onClose={handleCloseSnackbar}>
+        <Alert onClose={handleCloseSnackbar} severity="error" sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
 
     </div>
   );
 };
 
-export default ListContacts;
+export default Contacts;

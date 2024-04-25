@@ -28,7 +28,7 @@ const Navbar: React.FC<NavbarProps> = ({ username, onLogout }) => {
           <h2>Bem vindo, {username}</h2>
         </Box>
         <Box >
-          <Button variant="contained" color="primary" onClick={onLogout}>Logout</Button>
+          <Button variant="contained" color="secondary" onClick={onLogout}>Logout</Button>
         </Box>
       </Toolbar>
     </AppBar>
