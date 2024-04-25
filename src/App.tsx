@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import Login from './components/Login';
 import Register from './components/Register';
 import Contact from './components/Contacts';
 import Navbar from './components/Navbar';
 import ListContacts from './components/ListContacts';
+import { useNavigate } from 'react-router-dom';
 
 const isLoggedIn = () => {
   // Verificar se o usuário está logado (pode ser uma verificação em localStorage, por exemplo)
@@ -22,12 +23,16 @@ const App: React.FC = () => {
     setUsername(username);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('loggedIn');
-    localStorage.removeItem('username');
-    setLoggedIn(false);
-    setUsername('');
-  };
+  
+
+const handleLogout = () => {
+  localStorage.removeItem('loggedIn');
+  localStorage.removeItem('username');
+  setLoggedIn(false);
+  setUsername('');
+  const navigate = useNavigate();
+  navigate('/login');
+};
 
   return (
     <Router>
@@ -35,8 +40,8 @@ const App: React.FC = () => {
         <Route path="/" element={isLoggedIn() ? <Navigate to="/login" /> : <Login onLogin={handleLogin} />} />
         <Route path="/login" element={isLoggedIn() ? <Navigate to="/login" /> : <Login onLogin={handleLogin} />} />
         <Route path="/register" element={isLoggedIn() ? <Navigate to="/register" /> : <Register onLogin={handleLogin} />} />
-        <Route path="/ListContact" element={isLoggedIn() ? <ListContacts /> : <ListContacts/>} />
-        <Route path="/create" element={isLoggedIn() ? <Contact /> : <Contact/>} />
+        <Route path="/ListContact" element={isLoggedIn() ? <ListContacts /> : <Login onLogin={handleLogin} />} />
+        <Route path="/create" element={isLoggedIn() ? <Contact /> :<Login onLogin={handleLogin} />} />
       </Routes>
       <div>
       {loggedIn ? (
